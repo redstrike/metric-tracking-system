@@ -12,6 +12,7 @@
     "typescript": "^5.5.4"
   },
   "dependencies": {
+    "@fastify/mongodb": "^9.0.2",
     "@platformatic/service": "^3.6.0"
   },
   "engines": {
