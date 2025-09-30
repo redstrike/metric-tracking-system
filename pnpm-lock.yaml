@@ -22,7 +22,7 @@ importers:
         specifier: ^5.0.0
         version: 5.6.1
 
-  web/metric-tracking-api:
+  apps/metric-tracking-api:
     dependencies:
       '@platformatic/service':
         specifier: ^3.6.0
