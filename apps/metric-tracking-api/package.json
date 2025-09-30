@@ -8,6 +8,7 @@
   },
   "devDependencies": {
     "fastify": "^5.0.0",
+    "oxlint-tsgolint": "^0.2.0",
     "typescript": "^5.5.4"
   },
   "dependencies": {

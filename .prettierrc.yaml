@@ -1,0 +1,18 @@
+# Prettier Options - https://prettier.io/docs/en/options.html
+printWidth: 140 # typescript team's convention + (5 x tabWidth) => 120 + 20
+useTabs: true # accessibility reason - https://github.com/prettier/prettier/issues/7475
+tabWidth: 4 # typescript team's convention
+semi: false # prettier + ts => semicolons are redundant
+singleQuote: true # faster typing and less redundant text strokes
+trailingComma: es5
+endOfLine: crlf # optimized for Windows workstations
+
+# Note: this Prettier config file is included by Tung Nguyen Thanh for manual usages only (if needed when refactoring legacy code)
+
+overrides:
+  - files:
+      - '*.json'
+      - '*.yaml'
+      - '*.yml'
+    options:
+      tabWidth: 2

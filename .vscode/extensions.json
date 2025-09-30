@@ -1,0 +1,17 @@
+{
+    "recommendations": [
+        "oxc.oxc-vscode",
+        "vivaxy.vscode-conventional-commits",
+        "editorconfig.editorconfig",
+        "visualstudioexptteam.vscodeintellicode",
+        "visualstudioexptteam.intellicode-api-usage-examples",
+        "visualstudioexptteam.vscodeintellicode-completions",
+        "esbenp.prettier-vscode",
+        "yoavbls.pretty-ts-errors",
+        "humao.rest-client",
+        "eamodio.gitlens",
+        "vscode-icons-team.vscode-icons",
+        "pomber.git-file-history",
+        "sdras.night-owl"
+    ]
+}

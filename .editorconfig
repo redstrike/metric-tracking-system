@@ -1,0 +1,27 @@
+# EditorConfig helps maintain consistent coding styles for multiple developers working on the same
+# project across various editors and IDEs. EditorConfig is awesome: https://EditorConfig.org
+
+# Top-most EditorConfig file
+root = true
+
+[*]
+indent_style = tab
+indent_size = 4
+end_of_line = crlf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{json,yaml}] # Do NOT insert extra spaces after commas
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+
+# The indent size used in the `package.json` file cannot be changed
+# https://github.com/npm/npm/pull/3180#issuecomment-16336516
+[package.json]
+indent_size = 2
+insert_final_newline = false
+
+[*.sh]
+end_of_line = lf
