@@ -1,0 +1,19 @@
+{
+  "name": "metric-tracking-system",
+  "scripts": {
+    "dev": "wattpm dev",
+    "build": "wattpm build",
+    "start": "wattpm start"
+  },
+  "devDependencies": {
+    "fastify": "^5.0.0"
+  },
+  "dependencies": {
+    "@platformatic/runtime": "^3.6.0",
+    "platformatic": "^3.6.0",
+    "wattpm": "^3.6.0"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  }
+}
