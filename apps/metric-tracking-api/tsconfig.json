@@ -1,22 +1,22 @@
-
 {
-  "compilerOptions": {
-    "module": "commonjs",
-    "esModuleInterop": true,
-    "target": "es2024",
-    "sourceMap": true,
-    "pretty": true,
-    "noEmitOnError": true,
-    "incremental": true,
-    "strict": true,
-    "outDir": "dist",
-    "skipLibCheck": true
-  },
-  "watchOptions": {
-    "watchFile": "fixedPollingInterval",
-    "watchDirectory": "fixedPollingInterval",
-    "fallbackPolling": "dynamicPriority",
-    "synchronousWatchDirectory": true,
-    "excludeDirectories": ["**/node_modules", "dist"]
-  }
+	"extends": ["@tsconfig/node-lts/tsconfig.json", "@tsconfig/node-ts/tsconfig.json"],
+
+	"compilerOptions": {
+		"target": "es2024",
+
+		// Platformatic's configuration
+		"sourceMap": true,
+		"pretty": true,
+		"noEmitOnError": true,
+		"incremental": true,
+		"outDir": "dist"
+	},
+
+	"watchOptions": {
+		"watchFile": "fixedPollingInterval",
+		"watchDirectory": "fixedPollingInterval",
+		"fallbackPolling": "dynamicPriority",
+		"synchronousWatchDirectory": true,
+		"excludeDirectories": ["**/node_modules", "dist"]
+	}
 }

@@ -1,5 +1,6 @@
 {
   "name": "metric-tracking-api",
+  "type": "module",
   "scripts": {
     "dev": "wattpm dev",
     "start": "wattpm start",
@@ -7,9 +8,11 @@
     "test": "node --test"
   },
   "devDependencies": {
+    "@tsconfig/node-lts": "^22.0.2",
+    "@tsconfig/node-ts": "^23.6.1",
     "fastify": "^5.0.0",
     "oxlint-tsgolint": "^0.2.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "@fastify/mongodb": "^9.0.2",

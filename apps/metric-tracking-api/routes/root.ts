@@ -1,8 +1,9 @@
 import { type FastifyInstance, type FastifyPluginOptions } from 'fastify'
+import { type AppConfig } from '../plugins/types.ts'
 
 declare module 'fastify' {
 	interface FastifyInstance {
-		example: string
+		config: AppConfig
 	}
 }
 
@@ -12,7 +13,8 @@ const BaseResponseSchema = {
 	properties: {
 		success: { type: 'boolean' },
 		message: { type: 'string' },
-		data: { type: 'object' }, // {} => allows any valid JSON type (object, array, number, string, boolean, or null)
+		data: {}, // {} => allows any valid JSON type (object, array, number, string, boolean, or null)
+		error: {},
 	},
 } as const
 
@@ -42,7 +44,7 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 		createdAt: string
 	}
 
-	const metricsCollectionName = 'metrics'
+	const metricsCollectionName = fastify.config.metricsCollectionName
 
 	fastify.route({
 		method: 'POST',
@@ -69,8 +71,12 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 			if (!metrics) {
 				return reply.status(500).send({ success: false, message: 'Database connection error' })
 			}
-			const result = await metrics.insertOne(request.body as MetricDocument)
-			return { success: true, message: 'Metric created successfully', data: result }
+			try {
+				const result = await metrics.insertOne(request.body as MetricDocument)
+				return { success: true, message: 'Metric created successfully', data: result }
+			} catch (error) {
+				return reply.status(500).send({ success: false, message: 'Failed to create metric', error })
+			}
 		},
 	})
 }
