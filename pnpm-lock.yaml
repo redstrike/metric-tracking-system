@@ -30,6 +30,9 @@ importers:
       '@platformatic/service':
         specifier: ^3.6.0
         version: 3.6.0(typescript@5.9.3)
+      mongodb:
+        specifier: ^6.20.0
+        version: 6.20.0
     devDependencies:
       '@tsconfig/node-lts':
         specifier: ^22.0.2

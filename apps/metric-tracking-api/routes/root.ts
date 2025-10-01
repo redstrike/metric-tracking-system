@@ -1,4 +1,5 @@
 import { type FastifyInstance, type FastifyPluginOptions } from 'fastify'
+import { type Collection } from 'mongodb'
 import { type AppConfig } from '../plugins/types.ts'
 
 declare module 'fastify' {
@@ -62,7 +63,7 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 			description: 'ISO 8601 compliance date only string (UTC). Example: 2025-10-01',
 			format: 'date',
 		},
-		sort: { type: 'string', enum: ['asc', 'desc'] as const },
+		sort: { type: 'string', enum: ['asc', 'desc'] as const, default: 'asc' },
 	} as const
 
 	const metricsCollectionName = fastify.config.metricsCollectionName
@@ -117,48 +118,11 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 		schema: {
 			querystring: {
 				type: 'object',
-				required: ['userId', 'unitType'],
-				properties: {
-					userId: props.userId,
-					unitType: props.unitType,
-					sort: { ...props.sort, default: 'desc' },
-				},
-			},
-			...BaseResponseSchema,
-		},
-		handler: async (request, reply) => {
-			const { userId, unitType, sort } = request.query as {
-				userId: string
-				unitType: (typeof props.unitType.enum)[number]
-				sort: (typeof props.sort.enum)[number]
-			}
-			const sortBy = sort === 'asc' ? 1 : -1
-
-			const metrics = request.server.mongo.db?.collection<MetricDocument>(metricsCollectionName)
-			if (!metrics) {
-				return reply.status(500).send({ success: false, message: 'Database connection error' })
-			}
-
-			try {
-				const result = await metrics.find({ userId, unitType }).sort({ createdAt: sortBy }).toArray()
-				return { success: true, data: result }
-			} catch (error) {
-				return reply.status(500).send({ success: false, message: 'Failed to get metrics', error })
-			}
-		},
-	})
-
-	fastify.route({
-		method: 'GET',
-		url: '/metrics-by-unit',
-		schema: {
-			querystring: {
-				type: 'object',
 				required: ['userId', 'unit'],
 				properties: {
 					userId: props.userId,
 					unit: props.unit,
-					sort: { ...props.sort, default: 'asc' },
+					sort: props.sort,
 				},
 			},
 			...BaseResponseSchema,
@@ -185,6 +149,43 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 		},
 	})
 
+	fastify.route({
+		method: 'GET',
+		url: '/metrics-by-unit-type',
+		schema: {
+			querystring: {
+				type: 'object',
+				required: ['userId', 'unitType'],
+				properties: {
+					userId: props.userId,
+					unitType: props.unitType,
+					sort: props.sort,
+				},
+			},
+			...BaseResponseSchema,
+		},
+		handler: async (request, reply) => {
+			const { userId, unitType, sort } = request.query as {
+				userId: string
+				unitType: (typeof props.unitType.enum)[number]
+				sort: (typeof props.sort.enum)[number]
+			}
+			const sortBy = sort === 'asc' ? 1 : -1
+
+			const metrics = request.server.mongo.db?.collection<MetricDocument>(metricsCollectionName)
+			if (!metrics) {
+				return reply.status(500).send({ success: false, message: 'Database connection error' })
+			}
+
+			try {
+				const result = await metrics.find({ userId, unitType }).sort({ createdAt: sortBy }).toArray()
+				return { success: true, data: result }
+			} catch (error) {
+				return reply.status(500).send({ success: false, message: 'Failed to get metrics', error })
+			}
+		},
+	})
+
 	function getUTCEndOfDay(isoDateOnlyStr = ''): Date {
 		if (isoDateOnlyStr.length > 0 && isoDateOnlyStr.length !== 10) {
 			throw new Error('Invalid ISO date only string')
@@ -201,57 +202,13 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 		schema: {
 			querystring: {
 				type: 'object',
-				required: ['userId', 'unitType', 'startDate'],
-				properties: {
-					userId: props.userId,
-					unitType: props.unitType,
-					startDate: props.isoDateOnlyStr,
-					endDate: { ...props.isoDateOnlyStr, default: getUTCEndOfDay().toISOString().split('T')[0] },
-					sort: { ...props.sort, default: 'asc' },
-				},
-			},
-			...BaseResponseSchema,
-		},
-		handler: async (request, reply) => {
-			const { userId, unitType, startDate, endDate, sort } = request.query as {
-				userId: string
-				unitType: (typeof props.unitType.enum)[number]
-				startDate: string
-				endDate: string
-				sort: (typeof props.sort.enum)[number]
-			}
-			const sortBy = sort === 'asc' ? 1 : -1
-
-			const metrics = request.server.mongo.db?.collection<MetricDocument>(metricsCollectionName)
-			if (!metrics) {
-				return reply.status(500).send({ success: false, message: 'Database connection error' })
-			}
-
-			try {
-				const result = await metrics
-					.find({ userId, unitType, createdAt: { $gte: startDate, $lte: getUTCEndOfDay(endDate).toISOString() } })
-					.sort({ createdAt: sortBy })
-					.toArray()
-				return { success: true, data: result }
-			} catch (error) {
-				return reply.status(500).send({ success: false, message: 'Failed to get metrics', error })
-			}
-		},
-	})
-
-	fastify.route({
-		method: 'GET',
-		url: '/chart-metrics-by-unit',
-		schema: {
-			querystring: {
-				type: 'object',
 				required: ['userId', 'unit', 'startDate'],
 				properties: {
 					userId: props.userId,
 					unit: props.unit,
 					startDate: props.isoDateOnlyStr,
 					endDate: { ...props.isoDateOnlyStr, default: getUTCEndOfDay().toISOString().split('T')[0] },
-					sort: { ...props.sort, default: 'asc' },
+					sort: props.sort,
 				},
 			},
 			...BaseResponseSchema,
@@ -272,14 +229,82 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 			}
 
 			try {
-				const result = await metrics
-					.find({ userId, unit, createdAt: { $gte: startDate, $lte: getUTCEndOfDay(endDate).toISOString() } })
-					.sort({ createdAt: sortBy })
-					.toArray()
+				const result = await getChartMetricsByUnit(metrics, userId, unit, startDate, getUTCEndOfDay(endDate).toISOString(), sortBy)
 				return { success: true, data: result }
 			} catch (error) {
-				return reply.status(500).send({ success: false, message: 'Failed to get metrics', error })
+				return reply.status(500).send({ success: false, message: `Failed to get metrics`, error })
 			}
 		},
 	})
+
+	async function getChartMetricsByUnit(
+		metrics: Collection<MetricDocument>,
+		userId: string,
+		unit: string,
+		startDate: string,
+		endDate: string,
+		sortBy: 1 | -1 // asc or desc
+	) {
+		const pipeline = [
+			// Stage 1: Filter by userId, unit, and date range
+			{
+				$match: {
+					userId,
+					unit,
+					createdAt: {
+						$gte: startDate,
+						$lte: endDate,
+					},
+				},
+			},
+			// Stage 2: Sort by createdAt descending to prepare for grouping
+			{
+				$sort: {
+					createdAt: -1,
+				},
+			},
+			// Stage 3: Convert createdAt string to Date object for accurate date grouping
+			{
+				$addFields: {
+					createdAtDate: { $toDate: '$createdAt' },
+				},
+			},
+			// Stage 4: Group by date (year-month-day) and get the latest entry for each day
+			{
+				$group: {
+					_id: {
+						$dateToString: {
+							format: '%Y-%m-%d',
+							date: '$createdAtDate',
+						},
+					},
+					latestMetric: { $first: '$$ROOT' },
+				},
+			},
+			// Stage 5: Project the desired fields
+			{
+				$project: {
+					_id: '$latestMetric._id',
+					userId: '$latestMetric.userId',
+					unit: '$latestMetric.unit',
+					unitType: '$latestMetric.unitType' as 'distance' | 'temperature',
+					value: '$latestMetric.value' as unknown as number,
+					createdAt: '$latestMetric.createdAt',
+				} satisfies MetricDocument,
+			},
+			// Stage 6: Sort the final results by createdAt in the requested order
+			{
+				$sort: {
+					createdAt: sortBy,
+				},
+			},
+		]
+
+		try {
+			const result = await metrics.aggregate(pipeline).toArray()
+			return result
+		} catch (err) {
+			throw new Error('Failed to aggregate metrics', { cause: err })
+		}
+	}
 }
