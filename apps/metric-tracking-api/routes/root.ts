@@ -345,47 +345,152 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 					},
 				},
 			},
-			// Stage 2: Sort by createdAt descending to prepare for grouping
-			{
-				$sort: {
-					createdAt: -1,
-				},
+			...sharedPipelineStages(sortBy),
+		]
+
+		try {
+			const result = await metrics.aggregate(pipeline).toArray()
+			return result
+		} catch (err) {
+			throw new Error('Failed to aggregate metrics', { cause: err })
+		}
+	}
+
+	const sharedPipelineStages = (sortBy: 1 | -1 /* asc or desc */) => [
+		// Stage 2: Sort by createdAt descending to prepare for grouping
+		{
+			$sort: {
+				createdAt: -1,
 			},
-			// Stage 3: Convert createdAt string to Date object for accurate date grouping
-			{
-				$addFields: {
-					createdAtDate: { $toDate: '$createdAt' },
-				},
+		},
+		// Stage 3: Convert createdAt string to Date object for accurate date grouping
+		{
+			$addFields: {
+				createdAtDate: { $toDate: '$createdAt' },
 			},
-			// Stage 4: Group by date (year-month-day) and get the latest entry for each day
-			{
-				$group: {
-					_id: {
-						$dateToString: {
-							format: '%Y-%m-%d',
-							date: '$createdAtDate',
-						},
+		},
+		// Stage 4: Group by date (year-month-day) and get the latest entry for each day
+		{
+			$group: {
+				_id: {
+					$dateToString: {
+						format: '%Y-%m-%d',
+						date: '$createdAtDate',
 					},
-					latestMetric: { $first: '$$ROOT' },
+				},
+				latestMetric: { $first: '$$ROOT' },
+			},
+		},
+		// Stage 5: Project the desired fields
+		{
+			$project: {
+				_id: '$latestMetric._id',
+				userId: '$latestMetric.userId',
+				unit: '$latestMetric.unit',
+				unitType: '$latestMetric.unitType' as 'distance' | 'temperature',
+				value: '$latestMetric.value' as unknown as number,
+				createdAt: '$latestMetric.createdAt',
+			} satisfies MetricDocument,
+		},
+		// Stage 6: Sort the final results by createdAt in the requested order
+		{
+			$sort: {
+				createdAt: sortBy,
+			},
+		},
+	]
+
+	// GET /chart-metrics-by-unit-type
+	fastify.route({
+		method: 'GET',
+		url: '/chart-metrics-by-unit-type',
+		schema: {
+			querystring: {
+				type: 'object',
+				required: ['userId', 'unitType', 'startDate'],
+				properties: {
+					userId: props.userId,
+					unitType: props.unitType,
+					startDate: props.isoDateOnlyStr,
+					endDate: { ...props.isoDateOnlyStr, default: getUTCEndOfDay().toISOString().split('T')[0] },
+					sort: props.sort,
+					toUnit: props.unit,
 				},
 			},
-			// Stage 5: Project the desired fields
+			...BaseResponseSchema,
+		},
+		handler: async (request, reply) => {
+			const { userId, unitType, startDate, endDate, sort, toUnit } = request.query as {
+				userId: string
+				unitType: (typeof props.unitType.enum)[number]
+				startDate: string
+				endDate: string
+				sort: (typeof props.sort.enum)[number]
+				toUnit?: (typeof props.unit.enum)[number]
+			}
+			const sortBy = sort === 'asc' ? 1 : -1
+
+			if (toUnit) {
+				const toUnitType = getUnitType(toUnit)
+				if (unitType !== toUnitType) {
+					return reply
+						.status(400)
+						.send({ success: false, message: 'Invalid `toUnit`: must be the same unit type as the original unit' })
+				}
+			}
+
+			const metrics = request.server.mongo.db?.collection<MetricDocument>(metricsCollectionName)
+			if (!metrics) {
+				return reply.status(500).send({ success: false, message: 'Database connection error' })
+			}
+
+			try {
+				const result = await getChartMetricsByUnitType(
+					metrics,
+					userId,
+					unitType,
+					startDate,
+					getUTCEndOfDay(endDate).toISOString(),
+					sortBy
+				)
+				if (toUnit && unitType) {
+					const convertedMetrics = convertMetrics(
+						result as WithId<MetricDocument>[],
+						unitType,
+						toUnit,
+						convertToBase,
+						convertFromBase
+					)
+					return { success: true, data: convertedMetrics }
+				}
+				return { success: true, data: result }
+			} catch (error) {
+				return reply.status(500).send({ success: false, message: `Failed to get metrics`, error })
+			}
+		},
+	})
+
+	async function getChartMetricsByUnitType(
+		metrics: Collection<MetricDocument>,
+		userId: string,
+		unitType: string,
+		startDate: string,
+		endDate: string,
+		sortBy: 1 | -1 // asc or desc
+	) {
+		const pipeline = [
+			// Stage 1: Filter by userId, unitType, and date range
 			{
-				$project: {
-					_id: '$latestMetric._id',
-					userId: '$latestMetric.userId',
-					unit: '$latestMetric.unit',
-					unitType: '$latestMetric.unitType' as 'distance' | 'temperature',
-					value: '$latestMetric.value' as unknown as number,
-					createdAt: '$latestMetric.createdAt',
-				} satisfies MetricDocument,
-			},
-			// Stage 6: Sort the final results by createdAt in the requested order
-			{
-				$sort: {
-					createdAt: sortBy,
+				$match: {
+					userId,
+					unitType,
+					createdAt: {
+						$gte: startDate,
+						$lte: endDate,
+					},
 				},
 			},
+			...sharedPipelineStages(sortBy),
 		]
 
 		try {
