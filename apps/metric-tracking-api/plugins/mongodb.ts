@@ -18,3 +18,7 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 		url: connectionStr,
 	})
 }
+
+// Indexes
+// 1. userId_text_unitType_text_createdAt_text (Created)
+// 2. userId_text_unit_text_createdAt_text (Failed to create due to Atlas free tier limit)

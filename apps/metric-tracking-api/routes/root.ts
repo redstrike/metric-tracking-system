@@ -1,5 +1,5 @@
 import { type FastifyInstance, type FastifyPluginOptions } from 'fastify'
-import { type Collection } from 'mongodb'
+import { type Collection, type WithId } from 'mongodb'
 import { type AppConfig } from '../plugins/types.ts'
 
 declare module 'fastify' {
@@ -28,6 +28,7 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 		},
 	} as const
 
+	// GET /
 	fastify.route({
 		method: 'GET',
 		url: '/',
@@ -68,6 +69,7 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 
 	const metricsCollectionName = fastify.config.metricsCollectionName
 
+	// POST /metrics
 	fastify.route({
 		method: 'POST',
 		url: '/metrics',
@@ -112,6 +114,10 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 		},
 	})
 
+	const convertToBase = fastify.config.convertToBase
+	const convertFromBase = fastify.config.convertFromBase
+
+	// GET /metrics
 	fastify.route({
 		method: 'GET',
 		url: '/metrics',
@@ -123,17 +129,31 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 					userId: props.userId,
 					unit: props.unit,
 					sort: props.sort,
+					toUnit: props.unit,
 				},
 			},
 			...BaseResponseSchema,
 		},
 		handler: async (request, reply) => {
-			const { userId, unit, sort } = request.query as {
+			const { userId, unit, sort, toUnit } = request.query as {
 				userId: string
 				unit: (typeof props.unit.enum)[number]
 				sort: (typeof props.sort.enum)[number]
+				toUnit?: (typeof props.unit.enum)[number]
 			}
 			const sortBy = sort === 'asc' ? 1 : -1
+
+			let unitType: string | undefined
+			if (toUnit && toUnit !== unit) {
+				const originalUnitType = getUnitType(unit)
+				const toUnitType = getUnitType(toUnit)
+				if (originalUnitType !== toUnitType) {
+					return reply
+						.status(400)
+						.send({ success: false, message: 'Invalid `toUnit`: must be the same unit type as the original unit' })
+				}
+				unitType = originalUnitType
+			}
 
 			const metrics = request.server.mongo.db?.collection<MetricDocument>(metricsCollectionName)
 			if (!metrics) {
@@ -142,6 +162,10 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 
 			try {
 				const result = await metrics.find({ userId, unit }).sort({ createdAt: sortBy }).toArray()
+				if (toUnit && unitType) {
+					const convertedMetrics = convertMetrics(result, unitType, toUnit, convertToBase, convertFromBase)
+					return { success: true, data: convertedMetrics }
+				}
 				return { success: true, data: result }
 			} catch (error) {
 				return reply.status(500).send({ success: false, message: 'Failed to get metrics', error })
@@ -149,6 +173,30 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 		},
 	})
 
+	function getUnitType(unit: string): string {
+		if (distanceUnits.includes(unit)) {
+			return 'distance'
+		} else if (temperatureUnits.includes(unit)) {
+			return 'temperature'
+		}
+		throw new Error('Invalid unit or unit type (distance or temperature)')
+	}
+
+	function convertMetrics(
+		result: WithId<MetricDocument>[],
+		unitType: string,
+		toUnit: string,
+		convertToBase: (unitType: string, value: number, originalUnit: string) => number,
+		convertFromBase: (unitType: string, value: number, targetUnit: string) => number
+	) {
+		return result.map((metric) => {
+			const baseValue = convertToBase(unitType, metric.value, metric.unit)
+			const convertedValue = convertFromBase(unitType, baseValue, toUnit)
+			return { ...metric, unit: toUnit, value: convertedValue }
+		})
+	}
+
+	// GET /metrics-by-unit-type
 	fastify.route({
 		method: 'GET',
 		url: '/metrics-by-unit-type',
@@ -160,17 +208,28 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 					userId: props.userId,
 					unitType: props.unitType,
 					sort: props.sort,
+					toUnit: props.unit,
 				},
 			},
 			...BaseResponseSchema,
 		},
 		handler: async (request, reply) => {
-			const { userId, unitType, sort } = request.query as {
+			const { userId, unitType, sort, toUnit } = request.query as {
 				userId: string
 				unitType: (typeof props.unitType.enum)[number]
 				sort: (typeof props.sort.enum)[number]
+				toUnit?: (typeof props.unit.enum)[number]
 			}
 			const sortBy = sort === 'asc' ? 1 : -1
+
+			if (toUnit) {
+				const toUnitType = getUnitType(toUnit)
+				if (unitType !== toUnitType) {
+					return reply
+						.status(400)
+						.send({ success: false, message: 'Invalid `toUnit`: must be the same unit type as the original unit' })
+				}
+			}
 
 			const metrics = request.server.mongo.db?.collection<MetricDocument>(metricsCollectionName)
 			if (!metrics) {
@@ -179,6 +238,10 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 
 			try {
 				const result = await metrics.find({ userId, unitType }).sort({ createdAt: sortBy }).toArray()
+				if (toUnit && unitType) {
+					const convertedMetrics = convertMetrics(result, unitType, toUnit, convertToBase, convertFromBase)
+					return { success: true, data: convertedMetrics }
+				}
 				return { success: true, data: result }
 			} catch (error) {
 				return reply.status(500).send({ success: false, message: 'Failed to get metrics', error })
@@ -196,6 +259,7 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 		return date
 	}
 
+	// GET /chart-metrics
 	fastify.route({
 		method: 'GET',
 		url: '/chart-metrics',
@@ -209,19 +273,33 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 					startDate: props.isoDateOnlyStr,
 					endDate: { ...props.isoDateOnlyStr, default: getUTCEndOfDay().toISOString().split('T')[0] },
 					sort: props.sort,
+					toUnit: props.unit,
 				},
 			},
 			...BaseResponseSchema,
 		},
 		handler: async (request, reply) => {
-			const { userId, unit, startDate, endDate, sort } = request.query as {
+			const { userId, unit, startDate, endDate, sort, toUnit } = request.query as {
 				userId: string
 				unit: (typeof props.unit.enum)[number]
 				startDate: string
 				endDate: string
 				sort: (typeof props.sort.enum)[number]
+				toUnit?: (typeof props.unit.enum)[number]
 			}
 			const sortBy = sort === 'asc' ? 1 : -1
+
+			let unitType: string | undefined
+			if (toUnit && toUnit !== unit) {
+				const originalUnitType = getUnitType(unit)
+				const toUnitType = getUnitType(toUnit)
+				if (originalUnitType !== toUnitType) {
+					return reply
+						.status(400)
+						.send({ success: false, message: 'Invalid `toUnit`: must be the same unit type as the original unit' })
+				}
+				unitType = originalUnitType
+			}
 
 			const metrics = request.server.mongo.db?.collection<MetricDocument>(metricsCollectionName)
 			if (!metrics) {
@@ -230,6 +308,16 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 
 			try {
 				const result = await getChartMetricsByUnit(metrics, userId, unit, startDate, getUTCEndOfDay(endDate).toISOString(), sortBy)
+				if (toUnit && unitType) {
+					const convertedMetrics = convertMetrics(
+						result as WithId<MetricDocument>[],
+						unitType,
+						toUnit,
+						convertToBase,
+						convertFromBase
+					)
+					return { success: true, data: convertedMetrics }
+				}
 				return { success: true, data: result }
 			} catch (error) {
 				return reply.status(500).send({ success: false, message: `Failed to get metrics`, error })
