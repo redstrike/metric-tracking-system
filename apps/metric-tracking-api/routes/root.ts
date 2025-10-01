@@ -7,26 +7,26 @@ declare module 'fastify' {
 	}
 }
 
-const BaseResponseSchema = {
-	type: 'object',
-	required: ['success'],
-	properties: {
-		success: { type: 'boolean' },
-		message: { type: 'string' },
-		data: {}, // {} => allows any valid JSON type (object, array, number, string, boolean, or null)
-		error: {},
-	},
-} as const
-
-const RootRouteSchema = {
-	GET: {
-		response: {
-			200: BaseResponseSchema,
-		},
-	},
-} as const
-
 export default async function (fastify: FastifyInstance, opts: FastifyPluginOptions) {
+	const BaseResponseSchema = {
+		type: 'object',
+		required: ['success'],
+		properties: {
+			success: { type: 'boolean' },
+			message: { type: 'string' },
+			data: {}, // {} => allows any valid JSON type (object, array, number, string, boolean, or null)
+			error: {},
+		},
+	} as const
+
+	const RootRouteSchema = {
+		GET: {
+			response: {
+				200: BaseResponseSchema,
+			},
+		},
+	} as const
+
 	fastify.route({
 		method: 'GET',
 		url: '/',
@@ -44,6 +44,17 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 		createdAt: string
 	}
 
+	const props = {
+		userId: { type: 'string', maxLength: 36 },
+		unit: { type: 'string', enum: ['m', 'cm', 'inch', 'feet', 'yard', 'c', 'f', 'k'] },
+		isoDateStr: {
+			type: 'string',
+			description: 'ISO 8601 compliance date string. Example: 2025-09-30T20:18:38.111Z',
+			format: 'date-time',
+		},
+		sort: { type: 'string', enum: ['asc', 'desc'] },
+	} as const
+
 	const metricsCollectionName = fastify.config.metricsCollectionName
 
 	fastify.route({
@@ -54,14 +65,10 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 				type: 'object',
 				required: ['userId', 'unit', 'value', 'createdAt'],
 				properties: {
-					userId: { type: 'string', maxLength: 36 },
-					unit: { type: 'string', enum: ['m', 'cm', 'inch', 'feet', 'yard', 'c', 'f', 'k'] },
+					userId: props.userId,
+					unit: props.unit,
 					value: { type: 'number' },
-					createdAt: {
-						type: 'string',
-						description: 'ISO 8601 compliance date string. Example: 2025-09-30T20:18:38.111Z',
-						format: 'date-time',
-					},
+					createdAt: props.isoDateStr,
 				},
 			},
 			...BaseResponseSchema,
@@ -76,6 +83,39 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 				return { success: true, message: 'Metric created successfully', data: result }
 			} catch (error) {
 				return reply.status(500).send({ success: false, message: 'Failed to create metric', error })
+			}
+		},
+	})
+
+	fastify.route({
+		method: 'GET',
+		url: '/metrics',
+		schema: {
+			querystring: {
+				type: 'object',
+				required: ['userId', 'unit'],
+				properties: {
+					userId: props.userId,
+					unit: props.unit,
+					sort: { ...props.sort, default: 'desc' },
+				},
+			},
+			...BaseResponseSchema,
+		},
+		handler: async (request, reply) => {
+			const { userId, unit, sort } = request.query as { userId: string; unit: string; sort: 'asc' | 'desc' }
+			const sortBy = sort === 'asc' ? 1 : -1
+
+			const metrics = request.server.mongo.db?.collection<MetricDocument>(metricsCollectionName)
+			if (!metrics) {
+				return reply.status(500).send({ success: false, message: 'Database connection error' })
+			}
+
+			try {
+				const result = await metrics.find({ userId, unit }).sort({ createdAt: sortBy }).toArray()
+				return { success: true, data: result }
+			} catch (error) {
+				return reply.status(500).send({ success: false, message: 'Failed to get metrics', error })
 			}
 		},
 	})
