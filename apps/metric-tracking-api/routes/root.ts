@@ -40,19 +40,24 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 		_id?: string
 		userId: string
 		unit: string
+		unitType: 'distance' | 'temperature'
 		value: number
 		createdAt: string
 	}
 
+	const distanceUnits = fastify.config.distanceUnits
+	const temperatureUnits = fastify.config.temperatureUnits
+
 	const props = {
 		userId: { type: 'string', maxLength: 36 },
-		unit: { type: 'string', enum: ['m', 'cm', 'inch', 'feet', 'yard', 'c', 'f', 'k'] },
+		unit: { type: 'string', enum: ['m', 'cm', 'inch', 'feet', 'yard', 'c', 'f', 'k'] as const },
+		unitType: { type: 'string', enum: ['distance', 'temperature'] as const },
 		isoDateStr: {
 			type: 'string',
 			description: 'ISO 8601 compliance date string. Example: 2025-09-30T20:18:38.111Z',
 			format: 'date-time',
 		},
-		sort: { type: 'string', enum: ['asc', 'desc'] },
+		sort: { type: 'string', enum: ['asc', 'desc'] as const },
 	} as const
 
 	const metricsCollectionName = fastify.config.metricsCollectionName
@@ -74,12 +79,26 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 			...BaseResponseSchema,
 		},
 		handler: async (request, reply) => {
+			const { unit } = request.body as Omit<MetricDocument, 'unitType'>
+
+			let unitType: MetricDocument['unitType']
+			if (distanceUnits.includes(unit)) {
+				unitType = 'distance'
+			} else if (temperatureUnits.includes(unit)) {
+				unitType = 'temperature'
+			} else {
+				return reply.status(400).send({ success: false, message: 'Invalid unit or unit type (distance or temperature)' })
+			}
+
 			const metrics = request.server.mongo.db?.collection<MetricDocument>(metricsCollectionName)
 			if (!metrics) {
 				return reply.status(500).send({ success: false, message: 'Database connection error' })
 			}
+
+			const metric = { ...(request.body as MetricDocument), unitType }
+
 			try {
-				const result = await metrics.insertOne(request.body as MetricDocument)
+				const result = await metrics.insertOne(metric)
 				return { success: true, message: 'Metric created successfully', data: result }
 			} catch (error) {
 				return reply.status(500).send({ success: false, message: 'Failed to create metric', error })
@@ -93,6 +112,43 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 		schema: {
 			querystring: {
 				type: 'object',
+				required: ['userId', 'unitType'],
+				properties: {
+					userId: props.userId,
+					unitType: props.unitType,
+					sort: { ...props.sort, default: 'desc' },
+				},
+			},
+			...BaseResponseSchema,
+		},
+		handler: async (request, reply) => {
+			const { userId, unitType, sort } = request.query as {
+				userId: string
+				unitType: (typeof props.unitType.enum)[number]
+				sort: (typeof props.sort.enum)[number]
+			}
+			const sortBy = sort === 'asc' ? 1 : -1
+
+			const metrics = request.server.mongo.db?.collection<MetricDocument>(metricsCollectionName)
+			if (!metrics) {
+				return reply.status(500).send({ success: false, message: 'Database connection error' })
+			}
+
+			try {
+				const result = await metrics.find({ userId, unitType }).sort({ createdAt: sortBy }).toArray()
+				return { success: true, data: result }
+			} catch (error) {
+				return reply.status(500).send({ success: false, message: 'Failed to get metrics', error })
+			}
+		},
+	})
+
+	fastify.route({
+		method: 'GET',
+		url: '/metrics-by-unit',
+		schema: {
+			querystring: {
+				type: 'object',
 				required: ['userId', 'unit'],
 				properties: {
 					userId: props.userId,
@@ -103,7 +159,11 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 			...BaseResponseSchema,
 		},
 		handler: async (request, reply) => {
-			const { userId, unit, sort } = request.query as { userId: string; unit: string; sort: 'asc' | 'desc' }
+			const { userId, unit, sort } = request.query as {
+				userId: string
+				unit: (typeof props.unit.enum)[number]
+				sort: (typeof props.sort.enum)[number]
+			}
 			const sortBy = sort === 'asc' ? 1 : -1
 
 			const metrics = request.server.mongo.db?.collection<MetricDocument>(metricsCollectionName)
