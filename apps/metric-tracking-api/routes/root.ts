@@ -54,8 +54,13 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 		unitType: { type: 'string', enum: ['distance', 'temperature'] as const },
 		isoDateStr: {
 			type: 'string',
-			description: 'ISO 8601 compliance date string. Example: 2025-09-30T20:18:38.111Z',
+			description: 'ISO 8601 compliance date string (UTC). Example: 2025-09-30T20:18:38.111Z',
 			format: 'date-time',
+		},
+		isoDateOnlyStr: {
+			type: 'string',
+			description: 'ISO 8601 compliance date only string (UTC). Example: 2025-10-01',
+			format: 'date',
 		},
 		sort: { type: 'string', enum: ['asc', 'desc'] as const },
 	} as const
@@ -153,7 +158,7 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 				properties: {
 					userId: props.userId,
 					unit: props.unit,
-					sort: { ...props.sort, default: 'desc' },
+					sort: { ...props.sort, default: 'asc' },
 				},
 			},
 			...BaseResponseSchema,
@@ -173,6 +178,104 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 
 			try {
 				const result = await metrics.find({ userId, unit }).sort({ createdAt: sortBy }).toArray()
+				return { success: true, data: result }
+			} catch (error) {
+				return reply.status(500).send({ success: false, message: 'Failed to get metrics', error })
+			}
+		},
+	})
+
+	function getUTCEndOfDay(isoDateOnlyStr = ''): Date {
+		if (isoDateOnlyStr.length > 0 && isoDateOnlyStr.length !== 10) {
+			throw new Error('Invalid ISO date only string')
+		}
+		// Append 'T00:00:00.000Z' to force UTC interpretation to prevent local time zone offsets from shifting the date forward/backward.
+		const date = isoDateOnlyStr.length === 10 ? new Date(isoDateOnlyStr + 'T00:00:00.000Z') : new Date()
+		date.setUTCHours(23, 59, 59, 999)
+		return date
+	}
+
+	fastify.route({
+		method: 'GET',
+		url: '/chart-metrics',
+		schema: {
+			querystring: {
+				type: 'object',
+				required: ['userId', 'unitType', 'startDate'],
+				properties: {
+					userId: props.userId,
+					unitType: props.unitType,
+					startDate: props.isoDateOnlyStr,
+					endDate: { ...props.isoDateOnlyStr, default: getUTCEndOfDay().toISOString().split('T')[0] },
+					sort: { ...props.sort, default: 'asc' },
+				},
+			},
+			...BaseResponseSchema,
+		},
+		handler: async (request, reply) => {
+			const { userId, unitType, startDate, endDate, sort } = request.query as {
+				userId: string
+				unitType: (typeof props.unitType.enum)[number]
+				startDate: string
+				endDate: string
+				sort: (typeof props.sort.enum)[number]
+			}
+			const sortBy = sort === 'asc' ? 1 : -1
+
+			const metrics = request.server.mongo.db?.collection<MetricDocument>(metricsCollectionName)
+			if (!metrics) {
+				return reply.status(500).send({ success: false, message: 'Database connection error' })
+			}
+
+			try {
+				const result = await metrics
+					.find({ userId, unitType, createdAt: { $gte: startDate, $lte: getUTCEndOfDay(endDate).toISOString() } })
+					.sort({ createdAt: sortBy })
+					.toArray()
+				return { success: true, data: result }
+			} catch (error) {
+				return reply.status(500).send({ success: false, message: 'Failed to get metrics', error })
+			}
+		},
+	})
+
+	fastify.route({
+		method: 'GET',
+		url: '/chart-metrics-by-unit',
+		schema: {
+			querystring: {
+				type: 'object',
+				required: ['userId', 'unit', 'startDate'],
+				properties: {
+					userId: props.userId,
+					unit: props.unit,
+					startDate: props.isoDateOnlyStr,
+					endDate: { ...props.isoDateOnlyStr, default: getUTCEndOfDay().toISOString().split('T')[0] },
+					sort: { ...props.sort, default: 'asc' },
+				},
+			},
+			...BaseResponseSchema,
+		},
+		handler: async (request, reply) => {
+			const { userId, unit, startDate, endDate, sort } = request.query as {
+				userId: string
+				unit: (typeof props.unit.enum)[number]
+				startDate: string
+				endDate: string
+				sort: (typeof props.sort.enum)[number]
+			}
+			const sortBy = sort === 'asc' ? 1 : -1
+
+			const metrics = request.server.mongo.db?.collection<MetricDocument>(metricsCollectionName)
+			if (!metrics) {
+				return reply.status(500).send({ success: false, message: 'Database connection error' })
+			}
+
+			try {
+				const result = await metrics
+					.find({ userId, unit, createdAt: { $gte: startDate, $lte: getUTCEndOfDay(endDate).toISOString() } })
+					.sort({ createdAt: sortBy })
+					.toArray()
 				return { success: true, data: result }
 			} catch (error) {
 				return reply.status(500).send({ success: false, message: 'Failed to get metrics', error })
