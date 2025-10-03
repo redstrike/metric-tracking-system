@@ -6,9 +6,10 @@ import { convertFromBase, convertMetrics, convertToBase, getUnitType } from './u
 export const getMetricsHandlerSchema = {
 	querystring: {
 		type: 'object',
-		required: ['userId', 'unit'],
+		required: ['userId', 'unitType'],
 		properties: {
 			userId: schemaProps.userId,
+			unitType: schemaProps.unitType,
 			unit: schemaProps.unit,
 			sort: schemaProps.sort,
 			toUnit: schemaProps.unit,
@@ -19,22 +20,21 @@ export const getMetricsHandlerSchema = {
 
 export async function getMetricsHandler(this: FastifyInstance, request: FastifyRequest, reply: FastifyReply) {
 	const { metricsCollectionName } = this.config
-	const { userId, unit, sort, toUnit } = request.query as {
+	const { userId, unitType, unit, sort, toUnit } = request.query as {
 		userId: string
-		unit: (typeof schemaProps.unit.enum)[number]
-		sort: (typeof schemaProps.sort.enum)[number]
+		unitType: (typeof schemaProps.unitType.enum)[number]
+		unit?: (typeof schemaProps.unit.enum)[number]
+		sort?: (typeof schemaProps.sort.enum)[number]
 		toUnit?: (typeof schemaProps.unit.enum)[number]
 	}
 	const sortBy = sort === 'asc' ? 1 : -1
 
-	let unitType: string | undefined
-	if (toUnit && toUnit !== unit) {
-		const originalUnitType = getUnitType(unit)
-		const toUnitType = getUnitType(toUnit)
-		if (originalUnitType !== toUnitType) {
-			return reply.status(400).send({ success: false, message: 'Invalid `toUnit`: must be the same unit type as the original unit' })
-		}
-		unitType = originalUnitType
+	if (unit && getUnitType(unit) !== unitType) {
+		return reply.status(400).send({ success: false, message: 'Invalid `unit`: must be the same as unit type' })
+	}
+
+	if (toUnit && getUnitType(toUnit) !== unitType) {
+		return reply.status(400).send({ success: false, message: 'Invalid `toUnit`: must be the same as unit type' })
 	}
 
 	const metrics = request.server.mongo.db?.collection<MetricDocument>(metricsCollectionName)
@@ -43,8 +43,9 @@ export async function getMetricsHandler(this: FastifyInstance, request: FastifyR
 	}
 
 	try {
-		const result = await metrics.find({ userId, unit }).sort({ createdAt: sortBy }).toArray()
-		if (toUnit && unitType) {
+		const filter = unit ? { userId, unitType, unit } : { userId, unitType } // Index: userId_text_unitType_text_createdAt_text
+		const result = await metrics.find(filter).sort({ createdAt: sortBy }).toArray()
+		if (toUnit) {
 			const convertedMetrics = convertMetrics(result, unitType, toUnit, convertToBase, convertFromBase)
 			return { success: true, data: convertedMetrics }
 		}

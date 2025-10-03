@@ -16,6 +16,11 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 		forceClose: true, // Force to close the mongodb connection when app stopped
 		database: dbName,
 		url: connectionStr,
+
+		// monitorCommands: true,
+		// this.mongo.client.once('commandStarted', (event) => {
+		//   console.error({ command: event.command })
+		// })
 	})
 }
 

@@ -1,6 +1,5 @@
 import { type FastifyInstance, type FastifyPluginOptions, type FastifyReply, type FastifyRequest } from 'fastify'
 import { createMetricHandler, createMetricHandlerSchema } from './metrics/create-metric.ts'
-import { getMetricsByUnitTypeHandler, getMetricsByUnitTypeHandlerSchema } from './metrics/get-metrics-by-unit-type.ts'
 import {
 	getMetricsChartViewByUnitTypeHandler,
 	getMetricsChartViewByUnitTypeHandlerSchema,
@@ -34,14 +33,6 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 
 	// GET /v0/metrics
 	fastify.route({ method: 'GET', url: _v0_metrics, schema: getMetricsHandlerSchema, handler: getMetricsHandler })
-
-	// GET /v0/metrics/by-unit-type
-	fastify.route({
-		method: 'GET',
-		url: `${_v0_metrics}/by-unit-type`,
-		schema: getMetricsByUnitTypeHandlerSchema,
-		handler: getMetricsByUnitTypeHandler,
-	})
 
 	// GET /v0/metrics/chart-view
 	fastify.route({
