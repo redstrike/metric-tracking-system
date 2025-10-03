@@ -30,11 +30,11 @@ export async function getMetricsHandler(this: FastifyInstance, request: FastifyR
 	const sortBy = sort === 'asc' ? 1 : -1
 
 	if (unit && getUnitType(unit) !== unitType) {
-		return reply.status(400).send({ success: false, message: 'Invalid `unit`: must be the same as unit type' })
+		return reply.status(400).send({ success: false, message: 'Invalid `unit`: must be compatible with `unitType`' })
 	}
 
 	if (toUnit && getUnitType(toUnit) !== unitType) {
-		return reply.status(400).send({ success: false, message: 'Invalid `toUnit`: must be the same as unit type' })
+		return reply.status(400).send({ success: false, message: 'Invalid `toUnit`: must be compatible with `unitType`' })
 	}
 
 	const metrics = request.server.mongo.db?.collection<MetricDocument>(metricsCollectionName)
