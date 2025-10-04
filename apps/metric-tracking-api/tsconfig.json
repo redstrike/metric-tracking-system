@@ -1,12 +1,9 @@
 {
-	"extends": ["@tsconfig/node-lts/tsconfig.json", "@tsconfig/node-ts/tsconfig.json"],
+	"extends": "@platformatic/tsconfig",
 
 	"compilerOptions": {
-		"target": "es2024",
-
-		// Platformatic's configuration
+		// @platformatic/service's specific settings
 		"sourceMap": true,
-		"pretty": true,
 		"noEmitOnError": true,
 		"incremental": true,
 		"outDir": "dist"

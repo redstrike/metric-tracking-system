@@ -6,13 +6,13 @@
     "start": "wattpm start"
   },
   "devDependencies": {
-    "fastify": "^5.0.0"
+    "fastify": "^5.6.1"
   },
   "dependencies": {
-    "@platformatic/runtime": "^3.6.0",
+    "@platformatic/runtime": "^3.7.1",
     "@platformatic/service": "^3.7.1",
-    "platformatic": "^3.6.0",
-    "wattpm": "^3.6.0"
+    "platformatic": "^3.7.1",
+    "wattpm": "^3.7.1"
   },
   "engines": {
     "node": ">=22.20.0"

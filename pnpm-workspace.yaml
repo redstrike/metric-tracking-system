@@ -1,6 +1,8 @@
 packages:
-# all packages in direct subdirs of packages/
-- 'applications/*'
-- 'apps/*'
-- 'services/*'
-- 'web/*'
+  - applications/*
+  - apps/*
+  - services/*
+  - web/*
+
+onlyBuiltDependencies:
+  - protobufjs

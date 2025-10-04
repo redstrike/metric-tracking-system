@@ -8,9 +8,8 @@
     "test": "node --test"
   },
   "devDependencies": {
-    "@tsconfig/node-lts": "^22.0.2",
-    "@tsconfig/node-ts": "^23.6.1",
-    "fastify": "^5.0.0",
+    "@platformatic/tsconfig": "^0.2.0",
+    "fastify": "^5.6.1",
     "oxlint-tsgolint": "^0.2.0",
     "typescript": "^5.9.3"
   },
@@ -20,6 +19,6 @@
     "mongodb": "^6.20.0"
   },
   "engines": {
-    "node": ">=22.19.0"
+    "node": ">=22.20.0"
   }
 }
