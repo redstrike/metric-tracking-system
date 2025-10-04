@@ -5,7 +5,7 @@ import type { MetricDocument } from './types.ts'
 export const createMetricHandlerSchema = {
 	body: {
 		type: 'object',
-		required: ['userId', 'unit', 'value', 'createdAt'],
+		required: ['userId', 'unit', 'value'],
 		properties: {
 			userId: schemaProps.userId,
 			unit: schemaProps.unit,
@@ -13,12 +13,20 @@ export const createMetricHandlerSchema = {
 			createdAt: schemaProps.isoDateStr,
 		},
 	},
-	...responseSchema,
+	...responseSchema({
+		type: 'object',
+		properties: { acknowledged: { type: 'boolean' }, insertedId: { type: 'string' } },
+	}),
 }
 
 export async function createMetricHandler(this: FastifyInstance, request: FastifyRequest, reply: FastifyReply) {
 	const { metricsCollectionName } = this.config
-	const { unit } = request.body as Omit<MetricDocument, 'unitType'>
+	const { userId, unit, value, createdAt } = request.body as {
+		userId: string
+		unit: (typeof schemaProps.unit.enum)[number]
+		value: number
+		createdAt: string // createdAt ?? schemaProps.isoDateStr.default
+	}
 
 	let unitType: MetricDocument['unitType']
 	if (distanceUnits.includes(unit)) {
@@ -26,15 +34,15 @@ export async function createMetricHandler(this: FastifyInstance, request: Fastif
 	} else if (temperatureUnits.includes(unit)) {
 		unitType = 'temperature'
 	} else {
-		return reply.status(400).send({ success: false, message: 'Invalid unit or unit type (distance or temperature)' })
+		return reply.status(400).send({ success: false, message: 'Invalid `unit`: cannot find a compatible unit type' })
 	}
 
-	const metrics = request.server.mongo.db?.collection<MetricDocument>(metricsCollectionName)
+	const metrics = this.mongo.db?.collection<MetricDocument>(metricsCollectionName)
 	if (!metrics) {
 		return reply.status(500).send({ success: false, message: 'Database connection error' })
 	}
 
-	const metric = { ...(request.body as MetricDocument), unitType }
+	const metric = { userId, unitType, unit, value, createdAt: createdAt ?? new Date().toISOString() }
 
 	try {
 		const result = await metrics.insertOne(metric)

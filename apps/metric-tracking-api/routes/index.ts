@@ -9,11 +9,7 @@ export default async function (fastify: FastifyInstance, opts: FastifyPluginOpti
 	fastify.route({
 		method: 'GET',
 		url: '/',
-		schema: {
-			response: {
-				200: responseSchema,
-			},
-		},
+		schema: { ...responseSchema() },
 		handler:
 			// oxlint-disable-next-line no-unused-vars
 			function (this: FastifyInstance, request: FastifyRequest, reply: FastifyReply) {

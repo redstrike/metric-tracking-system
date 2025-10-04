@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { responseSchema, schemaProps } from '../shared.ts'
 import type { MetricDocument } from './types.ts'
 import { convertFromBase, convertMetrics, convertToBase, getUnitType } from './unit-converter.ts'
+import { metricDocumentSchema } from './shared.ts'
 
 export const getMetricsHandlerSchema = {
 	querystring: {
@@ -15,7 +16,7 @@ export const getMetricsHandlerSchema = {
 			toUnit: schemaProps.unit,
 		},
 	},
-	...responseSchema,
+	...responseSchema({ type: 'array', items: metricDocumentSchema }),
 }
 
 export async function getMetricsHandler(this: FastifyInstance, request: FastifyRequest, reply: FastifyReply) {
@@ -37,7 +38,7 @@ export async function getMetricsHandler(this: FastifyInstance, request: FastifyR
 		return reply.status(400).send({ success: false, message: 'Invalid `toUnit`: must be compatible with `unitType`' })
 	}
 
-	const metrics = request.server.mongo.db?.collection<MetricDocument>(metricsCollectionName)
+	const metrics = this.mongo.db?.collection<MetricDocument>(metricsCollectionName)
 	if (!metrics) {
 		return reply.status(500).send({ success: false, message: 'Database connection error' })
 	}
