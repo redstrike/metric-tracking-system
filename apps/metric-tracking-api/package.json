@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@fastify/mongodb": "^9.0.2",
-    "@platformatic/service": "^3.6.0",
+    "@platformatic/service": "^3.7.1",
     "mongodb": "^6.20.0"
   },
   "engines": {
