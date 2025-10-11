@@ -7,12 +7,10 @@ singleQuote: true # faster typing and less redundant text strokes
 trailingComma: es5
 endOfLine: crlf # optimized for Windows workstations
 
-# Note: this Prettier config file is included by Tung Nguyen Thanh for manual usages only (if needed when refactoring legacy code)
-
 overrides:
   - files:
-      - '*.json'
-      - '*.yaml'
-      - '*.yml'
+      - "*.json"
+      - "*.yaml"
+      - "*.yml"
     options:
       tabWidth: 2
