@@ -9,5 +9,6 @@ export const metricDocumentSchema = {
 		unitType: schemaProps.unitType,
 		value: { type: 'number' },
 		createdAt: schemaProps.isoDateStr,
+		updatedAt: schemaProps.isoDateStr,
 	},
 }

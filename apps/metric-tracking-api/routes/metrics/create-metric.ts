@@ -42,7 +42,8 @@ export async function createMetricHandler(this: FastifyInstance, request: Fastif
 		return reply.status(500).send({ success: false, message: 'Database connection error' })
 	}
 
-	const metric = { userId, unitType, unit, value, createdAt: createdAt ?? new Date().toISOString() }
+	const now = new Date().toISOString()
+	const metric = { userId, unitType, unit, value, createdAt: createdAt ?? now, updatedAt: now, schemaVersion: 1 } satisfies MetricDocument
 
 	try {
 		const result = await metrics.insertOne(metric)

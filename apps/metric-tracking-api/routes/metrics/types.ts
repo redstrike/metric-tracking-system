@@ -5,6 +5,8 @@ export interface MetricDocument {
 	unitType: 'distance' | 'temperature'
 	value: number
 	createdAt: string
+	updatedAt: string
+	schemaVersion: number
 }
 
 export type ConversionFn = (value: number) => number
