@@ -1,5 +1,11 @@
 {
-	"editor.rulers": [80, 100, 120],
-	"conventionalCommits.scopes": ["pnpm", "auth", "api"],
-	"vsicons.associations.files": [{ "icon": "typescriptdef", "extensions": ["types.ts", "enums.ts"], "filename": true }],
+  "editor.rulers": [80, 100, 120],
+  "conventionalCommits.scopes": ["pnpm", "auth", "api", "node/bun/elysia"],
+  "vsicons.associations.files": [
+    {
+      "icon": "typescriptdef",
+      "extensions": ["types.ts", "enums.ts"],
+      "filename": true
+    }
+  ]
 }
