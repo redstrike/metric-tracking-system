@@ -1,7 +1,14 @@
 {
   "$schema": "https://schemas.platformatic.dev/@platformatic/service/3.6.0.json",
   "service": {
-    "openapi": true
+    "openapi": {
+      "swaggerPrefix": "/docs",
+      "info": {
+        "title": "Metric Tracking API",
+        "description": "Metric Tracking API generated from the OpenAPI specification.",
+        "version": "0"
+      }
+    }
   },
   "watch": true,
   "plugins": {
