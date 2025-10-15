@@ -1,0 +1,3 @@
+[install]
+# Isolated installs: https://bun.com/docs/cli/install#isolated-installs
+linker = "isolated" # pnpm-like approach that creates strict dependency isolation to prevent phantom dependencies
