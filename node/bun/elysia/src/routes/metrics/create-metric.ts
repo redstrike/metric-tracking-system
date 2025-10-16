@@ -1,13 +1,13 @@
 import { type Context } from 'elysia'
-import { z } from 'zod'
+import z from 'zod'
 import { metricsCollection } from '../../config/mongodb'
 import { distanceUnits, temperatureUnits } from './shared'
 
-const createMetricBodySchema = z.object({
+export const createMetricBodySchema = z.object({
 	userId: z.string().max(36),
 	unit: z.enum([...distanceUnits, ...temperatureUnits]),
 	value: z.number(),
-	createdAt: z.string().optional(),
+	createdAt: z.iso.datetime().optional(),
 })
 
 export async function createMetricHandler(context: Context) {
