@@ -1,5 +1,5 @@
+import { createMetricBodySchema, createMetricHandler } from '@/routes/metrics/create-metric'
 import { Elysia } from 'elysia'
-import { createMetricBodySchema, createMetricHandler } from './metrics/create-metric'
 
 export function mapAllEndpoints(app: Elysia) {
 	// GET /

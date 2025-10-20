@@ -1,7 +1,7 @@
+import { mapAllEndpoints } from '@/routes/index'
 import { openapi } from '@elysiajs/openapi'
 import { Elysia } from 'elysia'
 import z from 'zod'
-import { mapAllEndpoints } from './routes'
 
 export const app = new Elysia()
 
