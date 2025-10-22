@@ -1,6 +1,6 @@
 {
   "editor.rulers": [80, 100, 120],
-  "conventionalCommits.scopes": ["node/watt", "node/bun/elysia"],
+  "conventionalCommits.scopes": ["node/watt", "node/bun/elysia", "rust/axum"],
   "vsicons.associations.files": [
     {
       "icon": "typescriptdef",

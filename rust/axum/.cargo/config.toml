@@ -1,0 +1,6 @@
+[alias]
+bin = ["run", "--release", "--package", "cargo-bin", "--"]
+bacon = ["run", "--release", "--package", "cargo-bin", "--", "bacon"]
+dev = ["bacon", "--job", "run-long"]
+binstall = ["bin", "cargo-binstall"]
+nextest = ["bin", "cargo-nextest"]
