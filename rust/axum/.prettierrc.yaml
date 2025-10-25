@@ -1,0 +1,17 @@
+# Prettier Options - https://prettier.io/docs/en/options.html
+printWidth: 140 # typescript team's convention + (5 x tabWidth) => 120 + 20
+useTabs: true # accessibility reason - https://github.com/prettier/prettier/issues/7475
+tabWidth: 4 # typescript team's convention
+endOfLine: crlf # optimized for windows workstations
+
+# -- Not supported yet --
+# trailingComma: "es5",
+# embeddedLanguageFormatting: "auto",
+
+overrides:
+  - files:
+      - "*.json"
+      - "*.yaml"
+      - "*.yml"
+    options:
+      tabWidth: 2
