@@ -41,7 +41,7 @@ async fn main() {
 	// Create router and start the server
 	let app = create_router(state);
 	let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await.expect("Failed to bind to address");
-	tracing::info!("Listening on {}", listener.local_addr().unwrap());
+	tracing::info!("Listening on http://{}", listener.local_addr().unwrap());
 	axum::serve(listener, app).with_graceful_shutdown(shutdown_signal()).await.expect("Failed to start server");
 }
 
